@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model PriorityItem {
+  id           String    @id
+  source       String
+  category     String
+  urgencyScore Int
+  sender       String
+  subject      String
+  preview      String
+  body         String    @default("")
+  draftReply   String
+  timestamp    String
+  threadId     String?
+  channelId    String?
+  phoneNumber  String?
+  replyTo      String?
+  status       String    @default("pending")
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model AgentLog {
+  id        String   @id @default(cuid())
+  agent     String
+  message   String
+  time      String
+  createdAt DateTime @default(now())
+}
+
+model Integration {
+  id           String    @id
+  accessToken  String
+  refreshToken String?
+  metadata     String    @default("{}")
+  expiresAt    DateTime?
+  updatedAt    DateTime  @updatedAt
+}
+
+model Stats {
+  id               String   @id @default("singleton")
+  messagesFiltered Int      @default(0)
+  draftsGenerated  Int      @default(0)
+  meetingsBlocked  Int      @default(0)
+  alertsFired      Int      @default(0)
+  updatedAt        DateTime @updatedAt
+}
