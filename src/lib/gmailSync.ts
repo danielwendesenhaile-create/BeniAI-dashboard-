@@ -3,6 +3,7 @@ import { getOAuthClient } from './gmailClient';
 import { tokenStore } from './tokenStore';
 import { classifyAndDelegate } from './agentPipeline';
 import { db } from './db';
+import { log } from './logger';
 
 interface GoogleMessagePayload {
   body?: { data?: string };
@@ -72,29 +73,35 @@ export async function syncGmailForUser(userId: string) {
   const items = [];
   for (const { id } of messageIds) {
     if (!id) continue;
-    const msg = await gmail.users.messages.get({ userId: 'me', id, format: 'full' });
-    const headers = msg.data.payload?.headers ?? [];
-    const get = (name: string) => headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value ?? '';
-    const sender = get('From');
-    const subject = get('Subject') || '(no subject)';
-    const body = extractBody(msg.data.payload as GoogleMessagePayload);
-    const timestamp = new Date(get('Date') || Date.now()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    try {
+      const msg = await gmail.users.messages.get({ userId: 'me', id, format: 'full' });
+      const headers = msg.data.payload?.headers ?? [];
+      const get = (name: string) => headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value ?? '';
+      const sender = get('From');
+      const subject = get('Subject') || '(no subject)';
+      const body = extractBody(msg.data.payload as GoogleMessagePayload);
+      const timestamp = new Date(get('Date') || Date.now()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-    const item = await classifyAndDelegate({ id: `gmail-${id}`, source: 'gmail', sender, subject, body: body.slice(0, 2000), timestamp });
+      const item = await classifyAndDelegate({ id: `gmail-${id}`, source: 'gmail', sender, subject, body: body.slice(0, 2000), timestamp });
 
-    await db.priorityItem.upsert({
-      where: { id: item.id },
-      create: { ...item, userId },
-      update: { ...item },
-    });
+      await db.priorityItem.upsert({
+        where: { id: item.id },
+        create: { ...item, userId },
+        update: { ...item },
+      });
 
-    await db.stats.upsert({
-      where: { userId },
-      create: { userId, messagesFiltered: 1 },
-      update: { messagesFiltered: { increment: 1 } },
-    });
+      await db.stats.upsert({
+        where: { userId },
+        create: { userId, messagesFiltered: 1 },
+        update: { messagesFiltered: { increment: 1 } },
+      });
 
-    items.push(item);
+      items.push(item);
+    } catch (err) {
+      // One message's classification failing (model formatting hiccup, etc.)
+      // shouldn't abort the rest of the batch — log and move on.
+      log.error('gmailSync.message.failed', err, { userId, messageId: id });
+    }
   }
 
   return items;

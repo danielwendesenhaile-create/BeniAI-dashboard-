@@ -26,35 +26,39 @@ export async function GET() {
 
       for (const msg of messages) {
         if (!msg.text || !msg.ts) continue;
-        let sender = 'Slack User';
-        if (msg.user) {
-          try {
-            const info = await slack.users.info({ user: msg.user });
-            sender = info.user?.real_name ?? info.user?.name ?? 'Slack User';
-          } catch { /* non-critical */ }
-        }
-        const channelName = channel.name ? `#${channel.name}` : 'DM';
-        const timestamp = new Date(parseFloat(msg.ts) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        const item = await classifyAndDelegate({
-          id: `slack-${msg.ts}`,
-          source: 'slack',
-          sender: `${sender} · ${channelName}`,
-          subject: msg.text.slice(0, 80),
-          body: msg.text.slice(0, 2000),
-          timestamp,
-        });
+        try {
+          let sender = 'Slack User';
+          if (msg.user) {
+            try {
+              const info = await slack.users.info({ user: msg.user });
+              sender = info.user?.real_name ?? info.user?.name ?? 'Slack User';
+            } catch { /* non-critical */ }
+          }
+          const channelName = channel.name ? `#${channel.name}` : 'DM';
+          const timestamp = new Date(parseFloat(msg.ts) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+          const item = await classifyAndDelegate({
+            id: `slack-${msg.ts}`,
+            source: 'slack',
+            sender: `${sender} · ${channelName}`,
+            subject: msg.text.slice(0, 80),
+            body: msg.text.slice(0, 2000),
+            timestamp,
+          });
 
-        await db.priorityItem.upsert({
-          where: { id: item.id },
-          create: { ...item, userId },
-          update: { ...item },
-        });
-        await db.stats.upsert({
-          where: { userId },
-          create: { userId, messagesFiltered: 1 },
-          update: { messagesFiltered: { increment: 1 } },
-        });
-        items.push(item);
+          await db.priorityItem.upsert({
+            where: { id: item.id },
+            create: { ...item, userId },
+            update: { ...item },
+          });
+          await db.stats.upsert({
+            where: { userId },
+            create: { userId, messagesFiltered: 1 },
+            update: { messagesFiltered: { increment: 1 } },
+          });
+          items.push(item);
+        } catch (err) {
+          console.error('[Slack sync] message failed', msg.ts, err);
+        }
       }
     }
 

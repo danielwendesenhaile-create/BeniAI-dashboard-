@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import { RouterPayloadSchema } from '@/lib/schemas';
 import { log } from '@/lib/logger';
+import { parseModelJson } from '@/lib/parseModelJson';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -68,7 +69,7 @@ Body: ${payload.body}`;
       return NextResponse.json({ error: 'No text response from model' }, { status: 500 });
     }
 
-    const classification = JSON.parse(textBlock.text);
+    const classification = parseModelJson<Omit<RouterResult, 'id'>>(textBlock.text);
     const result: RouterResult = {
       id: payload.id,
       ...classification,

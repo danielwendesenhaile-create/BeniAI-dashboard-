@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
+import { parseModelJson } from '@/lib/parseModelJson';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -57,7 +58,7 @@ Body: ${payload.body}`;
       return NextResponse.json({ error: 'No text response from model' }, { status: 500 });
     }
 
-    const result: EmailAgentResult = JSON.parse(textBlock.text);
+    const result: EmailAgentResult = parseModelJson(textBlock.text);
     return NextResponse.json(result);
   } catch (err) {
     console.error('[Email Agent] error:', err);

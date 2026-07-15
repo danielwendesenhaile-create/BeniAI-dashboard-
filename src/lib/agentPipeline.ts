@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { PriorityItem } from '@/data/mockData';
+import { parseModelJson } from './parseModelJson';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
@@ -105,5 +106,5 @@ export async function classifyMessage(params: {
   const res = await stream.finalMessage();
   const text = res.content.find((b) => b.type === 'text');
   if (!text || text.type !== 'text') throw new Error('No router response');
-  return JSON.parse(text.text);
+  return parseModelJson(text.text);
 }
