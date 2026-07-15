@@ -77,6 +77,7 @@ export async function classifyAndDelegate(rawMsg: RawMessage): Promise<PriorityI
     sender: msg.sender,
     subject: msg.subject,
     preview: msg.body.slice(0, 200),
+    body: msg.body.slice(0, 4000),
     timestamp: msg.timestamp,
     category: router.category,
     urgencyScore: clampedScore,

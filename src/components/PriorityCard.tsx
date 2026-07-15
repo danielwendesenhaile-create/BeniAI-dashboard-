@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, MessageCircle, Hash, CheckCheck, X, ChevronDown, ChevronUp, AlertTriangle, Loader2, Send, FileText, Clock, Share2 } from 'lucide-react';
+import { Mail, MessageCircle, Hash, X, ChevronDown, ChevronUp, AlertTriangle, Loader2, Send, FileText, Clock, Share2 } from 'lucide-react';
 import { PriorityItem } from '@/data/mockData';
 import { useAgentLog } from '@/context/AgentLogContext';
 
@@ -273,7 +273,7 @@ export default function PriorityCard({ item, onApprove, onDismiss }: Props) {
         </div>
       </div>
 
-      {/* Draft Reply toggle */}
+      {/* Message + Draft Reply toggle */}
       <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
         <button
           onClick={() => setExpanded(!expanded)}
@@ -281,33 +281,56 @@ export default function PriorityCard({ item, onApprove, onDismiss }: Props) {
           style={{ color: 'var(--accent-gold)' }}
         >
           {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          {expanded ? 'Hide draft reply' : 'View AI draft reply'}
+          {expanded ? 'Hide message & draft reply' : 'Read message & review AI draft'}
         </button>
 
         {expanded && (
-          <div className="px-4 pb-4">
-            <textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              rows={4}
-              className="w-full text-xs leading-relaxed resize-none rounded-lg px-3 py-2.5 outline-none focus:ring-1 transition-all"
-              style={{
-                background: 'var(--bg-elevated)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border)',
-                fontFamily: 'var(--font-geist-mono)',
-              }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent-gold-dim)')}
-              onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
-            />
+          <div className="px-4 pb-4 flex flex-col gap-3">
+            <div>
+              <div className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                Original message
+              </div>
+              <div
+                className="w-full text-xs leading-relaxed rounded-lg px-3 py-2.5 whitespace-pre-wrap"
+                style={{
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                  maxHeight: '240px',
+                  overflowY: 'auto',
+                }}
+              >
+                {item.body || item.preview || '(no message content)'}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold mb-1.5" style={{ color: 'var(--accent-gold)' }}>
+                AI draft reply — edit before sending
+              </div>
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={4}
+                className="w-full text-xs leading-relaxed resize-none rounded-lg px-3 py-2.5 outline-none focus:ring-1 transition-all"
+                style={{
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                  fontFamily: 'var(--font-geist-mono)',
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent-gold-dim)')}
+                onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+              />
+            </div>
 
             {sendError && (
-              <p className="text-xs mt-2 px-2 py-1.5 rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <p className="text-xs px-2 py-1.5 rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
                 {sendError}
               </p>
             )}
 
-            <div className="flex items-center gap-2 mt-3">
+            <div className="flex items-center gap-2">
               <button
                 onClick={handleApprove}
                 disabled={sending}
@@ -331,15 +354,6 @@ export default function PriorityCard({ item, onApprove, onDismiss }: Props) {
 
         {!expanded && (
           <div className="flex items-center gap-2 px-4 pb-3">
-            <button
-              onClick={handleApprove}
-              disabled={sending}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-90 disabled:opacity-60"
-              style={{ background: 'var(--accent-gold)', color: '#09090b' }}
-            >
-              {sending ? <Loader2 size={11} className="animate-spin" /> : <CheckCheck size={11} />}
-              {sending ? 'Sending…' : 'Approve'}
-            </button>
             <button
               onClick={() => onDismiss(item.id)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all hover:bg-white/[0.05]"

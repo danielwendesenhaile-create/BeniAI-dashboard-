@@ -8,6 +8,7 @@ export interface PriorityItem {
   sender: string;
   subject: string;
   preview: string;
+  body?: string;
   timestamp: string;
   urgencyScore: 1 | 2 | 3 | 4 | 5;
   draftReply: string;
