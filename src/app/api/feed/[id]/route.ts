@@ -1,32 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/apiAuth';
 import { db } from '@/lib/db';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const { status } = await req.json();
+  try {
+    const { userId } = await requireAuth();
+    const { id } = await params;
+    const { status, snoozedUntil, delegatedTo } = await req.json();
 
-  const item = await db.priorityItem.update({
-    where: { id },
-    data: {
-      status,
-      ...(status === 'approved' ? { sentAt: new Date() } : {}),
-    },
-  });
+    // Ensure the item belongs to this user (row-level check)
+    const existing = await db.priorityItem.findFirst({ where: { id, userId } });
+    if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  // Update stats counter
-  if (status === 'approved') {
-    await db.stats.upsert({
-      where: { id: 'singleton' },
-      create: { id: 'singleton', draftsGenerated: 1 },
-      update: { draftsGenerated: { increment: 1 } },
+    const item = await db.priorityItem.update({
+      where: { id },
+      data: {
+        status,
+        ...(status === 'approved' ? { sentAt: new Date() } : {}),
+        ...(snoozedUntil ? { snoozedUntil: new Date(snoozedUntil) } : {}),
+        ...(delegatedTo ? { delegatedTo } : {}),
+      },
     });
-  }
 
-  return NextResponse.json(item);
+    if (status === 'approved') {
+      await db.stats.upsert({
+        where: { userId },
+        create: { userId, draftsGenerated: 1 },
+        update: { draftsGenerated: { increment: 1 } },
+      });
+    }
+
+    return NextResponse.json(item);
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  await db.priorityItem.update({ where: { id }, data: { status: 'dismissed' } });
-  return NextResponse.json({ ok: true });
+  try {
+    const { userId } = await requireAuth();
+    const { id } = await params;
+    const existing = await db.priorityItem.findFirst({ where: { id, userId } });
+    if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    await db.priorityItem.update({ where: { id }, data: { status: 'dismissed' } });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  }
 }

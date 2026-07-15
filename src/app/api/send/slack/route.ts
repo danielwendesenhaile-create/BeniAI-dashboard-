@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/apiAuth';
 import { sendSlack } from '@/lib/senders';
+import { z } from 'zod';
+
+const schema = z.object({ channel: z.string(), text: z.string().max(4000), thread_ts: z.string().optional() });
 
 export async function POST(req: NextRequest) {
   try {
-    const { channel, text, thread_ts } = await req.json();
-
-    if (!channel || !text) {
-      return NextResponse.json({ error: 'channel and text are required' }, { status: 400 });
-    }
-
-    const result = await sendSlack({ channel, text, thread_ts });
+    const { userId } = await requireAuth();
+    const params = schema.parse(await req.json());
+    const result = await sendSlack(userId, params);
     return NextResponse.json({ ...result, sent: true });
   } catch (err) {
-    console.error('[Send Slack]', err);
-    const message = err instanceof Error ? err.message : 'Send failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    if (err instanceof NextResponse) return err;
+    if (err instanceof z.ZodError) return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Send failed' }, { status: 500 });
   }
 }

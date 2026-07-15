@@ -1,20 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/apiAuth';
 import { tokenStore } from '@/lib/tokenStore';
+import { z } from 'zod';
 
-// Slack uses bot tokens (no OAuth flow needed for single-workspace apps)
-// POST with { bot_token, team_id, team_name } to save credentials
+const schema = z.object({
+  bot_token: z.string().min(1),
+  team_id: z.string().default('unknown'),
+  team_name: z.string().default('Workspace'),
+});
+
 export async function POST(req: NextRequest) {
-  const { bot_token, team_id, team_name } = await req.json();
-
-  if (!bot_token) {
-    return NextResponse.json({ error: 'bot_token is required' }, { status: 400 });
+  try {
+    const { userId } = await requireAuth();
+    const body = schema.parse(await req.json());
+    tokenStore.setSlack(userId, body);
+    return NextResponse.json({ ok: true, team_name: body.team_name });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    if (err instanceof z.ZodError) return NextResponse.json({ error: 'bot_token required' }, { status: 400 });
+    return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
-
-  tokenStore.setSlack({ bot_token, team_id: team_id ?? 'unknown', team_name: team_name ?? 'Workspace' });
-  return NextResponse.json({ ok: true, team_name });
 }
 
 export async function DELETE() {
-  tokenStore.clearSlack();
-  return NextResponse.json({ ok: true });
+  try {
+    const { userId } = await requireAuth();
+    tokenStore.clearSlack(userId);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  }
 }

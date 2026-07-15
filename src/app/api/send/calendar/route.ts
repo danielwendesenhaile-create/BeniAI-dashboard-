@@ -1,29 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/apiAuth';
 import { createCalendarEvent, sendGmail } from '@/lib/senders';
+import { z } from 'zod';
+
+const schema = z.object({
+  summary: z.string().max(200),
+  description: z.string().max(2000).optional(),
+  startISO: z.string(),
+  endISO: z.string(),
+  attendeeEmails: z.array(z.string().email()).optional(),
+  confirmationEmail: z.object({ to: z.string().email(), body: z.string() }).optional(),
+});
 
 export async function POST(req: NextRequest) {
   try {
-    const { summary, description, startISO, endISO, attendeeEmails, confirmationEmail } = await req.json();
-
-    if (!summary || !startISO || !endISO) {
-      return NextResponse.json({ error: 'summary, startISO, and endISO are required' }, { status: 400 });
-    }
-
-    const event = await createCalendarEvent({ summary, description, startISO, endISO, attendeeEmails });
-
-    // Optionally send a confirmation email
-    if (confirmationEmail?.to && confirmationEmail?.body) {
-      await sendGmail({
-        to: confirmationEmail.to,
-        subject: `Meeting confirmed: ${summary}`,
-        body: confirmationEmail.body,
+    const { userId } = await requireAuth();
+    const params = schema.parse(await req.json());
+    const event = await createCalendarEvent(userId, params);
+    if (params.confirmationEmail) {
+      await sendGmail(userId, {
+        to: params.confirmationEmail.to,
+        subject: `Meeting confirmed: ${params.summary}`,
+        body: params.confirmationEmail.body,
       });
     }
-
     return NextResponse.json({ ...event, sent: true });
   } catch (err) {
-    console.error('[Send Calendar]', err);
-    const message = err instanceof Error ? err.message : 'Calendar event creation failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    if (err instanceof NextResponse) return err;
+    if (err instanceof z.ZodError) return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed' }, { status: 500 });
   }
 }

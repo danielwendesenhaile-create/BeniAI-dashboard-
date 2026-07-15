@@ -3,9 +3,9 @@ import { WebClient } from '@slack/web-api';
 import { getOAuthClient } from './gmailClient';
 import { tokenStore } from './tokenStore';
 
-// ── Gmail ────────────────────────────────────────────────────────────────────
+// ── Gmail ─────────────────────────────────────────────────────────────────────
 
-function buildMimeMessage(to: string, subject: string, body: string, threadId?: string): string {
+function buildMimeMessage(to: string, subject: string, body: string): string {
   const lines = [
     `To: ${to}`,
     `Subject: ${subject}`,
@@ -17,13 +17,11 @@ function buildMimeMessage(to: string, subject: string, body: string, threadId?: 
   return Buffer.from(lines.join('\r\n')).toString('base64url');
 }
 
-export async function sendGmail(params: {
-  to: string;
-  subject: string;
-  body: string;
-  threadId?: string;
-}): Promise<{ messageId: string }> {
-  const tokens = tokenStore.getGmail();
+export async function sendGmail(
+  userId: string,
+  params: { to: string; subject: string; body: string; threadId?: string }
+): Promise<{ messageId: string }> {
+  const tokens = tokenStore.getGmail(userId);
   if (!tokens) throw new Error('Gmail not connected');
 
   const oauth2 = getOAuthClient();
@@ -31,7 +29,7 @@ export async function sendGmail(params: {
 
   if (tokens.expiry_date < Date.now()) {
     const { credentials } = await oauth2.refreshAccessToken();
-    tokenStore.setGmail({
+    tokenStore.setGmail(userId, {
       access_token: credentials.access_token!,
       refresh_token: credentials.refresh_token ?? tokens.refresh_token,
       expiry_date: credentials.expiry_date ?? Date.now() + 3600 * 1000,
@@ -40,7 +38,7 @@ export async function sendGmail(params: {
   }
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2 });
-  const raw = buildMimeMessage(params.to, params.subject, params.body, params.threadId);
+  const raw = buildMimeMessage(params.to, params.subject, params.body);
 
   const res = await gmail.users.messages.send({
     userId: 'me',
@@ -53,14 +51,13 @@ export async function sendGmail(params: {
   return { messageId: res.data.id! };
 }
 
-// ── Slack ────────────────────────────────────────────────────────────────────
+// ── Slack ─────────────────────────────────────────────────────────────────────
 
-export async function sendSlack(params: {
-  channel: string;
-  text: string;
-  thread_ts?: string;
-}): Promise<{ ts: string }> {
-  const tokens = tokenStore.getSlack();
+export async function sendSlack(
+  userId: string,
+  params: { channel: string; text: string; thread_ts?: string }
+): Promise<{ ts: string }> {
+  const tokens = tokenStore.getSlack(userId);
   if (!tokens) throw new Error('Slack not connected');
 
   const slack = new WebClient(tokens.bot_token);
@@ -74,13 +71,13 @@ export async function sendSlack(params: {
   return { ts: res.ts as string };
 }
 
-// ── WhatsApp ─────────────────────────────────────────────────────────────────
+// ── WhatsApp ──────────────────────────────────────────────────────────────────
 
-export async function sendWhatsApp(params: {
-  to: string; // E.164 format
-  text: string;
-}): Promise<{ messageId: string }> {
-  const config = tokenStore.getWhatsApp();
+export async function sendWhatsApp(
+  userId: string,
+  params: { to: string; text: string }
+): Promise<{ messageId: string }> {
+  const config = tokenStore.getWhatsApp(userId);
   if (!config) throw new Error('WhatsApp not connected');
 
   const res = await fetch(
@@ -111,14 +108,11 @@ export async function sendWhatsApp(params: {
 
 // ── Google Calendar ───────────────────────────────────────────────────────────
 
-export async function createCalendarEvent(params: {
-  summary: string;
-  description?: string;
-  startISO: string;    // e.g. "2025-08-21T09:30:00-05:00"
-  endISO: string;
-  attendeeEmails?: string[];
-}): Promise<{ eventId: string; htmlLink: string }> {
-  const tokens = tokenStore.getGmail();
+export async function createCalendarEvent(
+  userId: string,
+  params: { summary: string; description?: string; startISO: string; endISO: string; attendeeEmails?: string[] }
+): Promise<{ eventId: string; htmlLink: string }> {
+  const tokens = tokenStore.getGmail(userId);
   if (!tokens) throw new Error('Google not connected');
 
   const oauth2 = getOAuthClient();
@@ -138,8 +132,5 @@ export async function createCalendarEvent(params: {
     },
   });
 
-  return {
-    eventId: res.data.id!,
-    htmlLink: res.data.htmlLink!,
-  };
+  return { eventId: res.data.id!, htmlLink: res.data.htmlLink! };
 }
