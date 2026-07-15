@@ -66,7 +66,7 @@ export async function syncGmailForUser(userId: string) {
     await db.priorityItem.upsert({
       where: { id: item.id },
       create: { ...item, userId },
-      update: {},
+      update: { ...item },
     });
 
     await db.stats.upsert({

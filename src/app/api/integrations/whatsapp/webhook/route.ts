@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
         await db.priorityItem.upsert({
           where: { id: item.id },
           create: { ...item, userId },
-          update: {},
+          update: { ...item },
         });
       }
     }).catch(console.error);

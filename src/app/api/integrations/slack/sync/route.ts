@@ -47,7 +47,7 @@ export async function GET() {
         await db.priorityItem.upsert({
           where: { id: item.id },
           create: { ...item, userId },
-          update: {},
+          update: { ...item },
         });
         await db.stats.upsert({
           where: { userId },
