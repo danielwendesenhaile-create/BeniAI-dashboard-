@@ -14,15 +14,34 @@ function decodeBase64(str: string): string {
   return Buffer.from(str.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
 }
 
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function extractBody(payload: GoogleMessagePayload): string {
-  if (payload.body?.data) return decodeBase64(payload.body.data);
+  if (payload.body?.data) {
+    const decoded = decodeBase64(payload.body.data);
+    return payload.mimeType === 'text/html' ? stripHtml(decoded) : decoded;
+  }
   if (payload.parts) {
     for (const part of payload.parts) {
       if (part.mimeType === 'text/plain' && part.body?.data) return decodeBase64(part.body.data);
     }
     for (const part of payload.parts) {
-      if (part.mimeType === 'text/html' && part.body?.data)
-        return decodeBase64(part.body.data).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (part.mimeType === 'text/html' && part.body?.data) return stripHtml(decodeBase64(part.body.data));
+    }
+    // Nested multipart (e.g. multipart/mixed containing multipart/alternative) — recurse.
+    for (const part of payload.parts) {
+      if (part.parts) {
+        const nested = extractBody(part);
+        if (nested) return nested;
+      }
     }
   }
   return '';
