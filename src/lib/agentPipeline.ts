@@ -17,7 +17,11 @@ export interface RawMessage {
 }
 
 // Run a message through Router → child agent → return PriorityItem (no DB writes — callers handle persistence)
-export async function classifyAndDelegate(msg: RawMessage): Promise<PriorityItem> {
+export async function classifyAndDelegate(rawMsg: RawMessage): Promise<PriorityItem> {
+  // Gmail/WhatsApp/Slack messages can legitimately have no extractable text body
+  // (attachment-only, unusual MIME nesting, etc.) — never send an empty body downstream.
+  const msg = { ...rawMsg, body: rawMsg.body?.trim() || '(no message content)' };
+
   // Step 1: Router
   const routerRes = await fetch(`${base}/api/router`, {
     method: 'POST',
