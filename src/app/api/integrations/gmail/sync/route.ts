@@ -30,6 +30,17 @@ function extractBody(payload: GoogleMessagePayload): string {
   return '';
 }
 
+export async function DELETE() {
+  try {
+    const { userId } = await requireAuth();
+    tokenStore.clearGmail(userId);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  }
+}
+
 export async function GET() {
   try {
     const { userId } = await requireAuth();

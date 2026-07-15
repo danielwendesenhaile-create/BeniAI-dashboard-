@@ -5,9 +5,18 @@ import { tokenStore } from '@/lib/tokenStore';
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get('code');
   const userId = req.nextUrl.searchParams.get('state'); // set in /auth route
+  const googleError = req.nextUrl.searchParams.get('error');
+
+  if (googleError) {
+    console.error('[Gmail callback] Google returned an error:', googleError);
+    return NextResponse.redirect(
+      new URL(`/integrations?error=${encodeURIComponent(googleError)}`, req.nextUrl.origin)
+    );
+  }
 
   if (!code || !userId) {
-    return NextResponse.json({ error: 'Missing OAuth code or state' }, { status: 400 });
+    console.error('[Gmail callback] Missing code or state', { hasCode: !!code, hasUserId: !!userId });
+    return NextResponse.redirect(new URL('/integrations?error=missing_code', req.nextUrl.origin));
   }
 
   try {
@@ -15,7 +24,8 @@ export async function GET(req: NextRequest) {
     const { tokens } = await oauth2.getToken(code);
 
     if (!tokens.access_token || !tokens.refresh_token) {
-      return NextResponse.json({ error: 'Incomplete token response' }, { status: 400 });
+      console.error('[Gmail callback] Incomplete token response', tokens);
+      return NextResponse.redirect(new URL('/integrations?error=incomplete_token', req.nextUrl.origin));
     }
 
     tokenStore.setGmail(userId, {
@@ -27,6 +37,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/integrations?connected=gmail', req.nextUrl.origin));
   } catch (err) {
     console.error('[Gmail callback]', err);
-    return NextResponse.json({ error: 'OAuth exchange failed' }, { status: 500 });
+    return NextResponse.redirect(new URL('/integrations?error=exchange_failed', req.nextUrl.origin));
   }
 }

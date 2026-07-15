@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Mail, Hash, MessageCircle, CheckCircle2, XCircle, ExternalLink, Loader2, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Mail, Hash, MessageCircle, CheckCircle2, XCircle, ExternalLink, Loader2, RefreshCw, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+
+const ERROR_MESSAGES: Record<string, string> = {
+  access_denied: 'You cancelled the Google sign-in before granting access — try again and approve all requested permissions.',
+  missing_code: 'Google did not return an authorization code. Try connecting again.',
+  incomplete_token: 'Google did not return a refresh token. Try disconnecting and reconnecting — this can happen on repeat authorizations.',
+  exchange_failed: 'Something went wrong exchanging the authorization code. Try again.',
+};
 
 interface ConnectionStatus {
   gmail: boolean;
@@ -50,12 +57,23 @@ export default function IntegrationsPanel() {
   const [saving, setSaving] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [bannerError, setBannerError] = useState<string | null>(null);
+  const [bannerSuccess, setBannerSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/integrations/status')
       .then((r) => r.json())
       .then(setStatus)
       .finally(() => setLoading(false));
+
+    const params = new URLSearchParams(window.location.search);
+    const errorCode = params.get('error');
+    const connected = params.get('connected');
+    if (errorCode) setBannerError(ERROR_MESSAGES[errorCode] ?? `Connection failed (${errorCode}).`);
+    if (connected) setBannerSuccess(`${connected.charAt(0).toUpperCase()}${connected.slice(1)} connected successfully.`);
+    if (errorCode || connected) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   async function connectSlack() {
@@ -160,6 +178,21 @@ export default function IntegrationsPanel() {
           <p className="text-xs mt-2" style={{ color: 'var(--accent-green)' }}>{syncStatus}</p>
         )}
       </div>
+
+      {bannerError && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs"
+          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+          <AlertTriangle size={14} className="flex-shrink-0" />
+          {bannerError}
+        </div>
+      )}
+      {bannerSuccess && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs"
+          style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', color: '#22c55e' }}>
+          <CheckCircle2 size={14} className="flex-shrink-0" />
+          {bannerSuccess}
+        </div>
+      )}
 
       {/* Cards */}
       {integrations.map((intg) => {
