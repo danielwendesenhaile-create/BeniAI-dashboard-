@@ -19,7 +19,9 @@ export default auth((req) => {
   if (isApi) return;
 
   if (!req.auth?.user) {
-    return NextResponse.redirect(new URL('/login', req.nextUrl.origin));
+    // Visitors landing on the bare root get the marketing page first, not a bare login form.
+    const dest = pathname === '/' ? '/landing' : '/login';
+    return NextResponse.redirect(new URL(dest, req.nextUrl.origin));
   }
 
   if (!req.auth.user.onboarded && !isOnboarding) {
