@@ -26,7 +26,7 @@ export default function PriorityFeed() {
       ]);
       if (feedRes.ok) {
         const data = await feedRes.json();
-        if (data.items?.length > 0) setItems(data.items);
+        setItems(data.items ?? []);
       }
       if (statsRes.ok) {
         const s = await statsRes.json();
