@@ -38,6 +38,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     session({ session, user }) {
       if (session.user && user) {
         session.user.id = user.id;
+        session.user.onboarded = (user as { onboarded?: boolean }).onboarded ?? false;
       }
       return session;
     },

@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 
 export default auth((req) => {
@@ -8,6 +9,21 @@ export default auth((req) => {
   ];
   if (webhookPaths.some((p) => req.nextUrl.pathname.startsWith(p))) {
     return;
+  }
+
+  const { pathname } = req.nextUrl;
+  const isOnboarding = pathname.startsWith('/onboarding');
+  const isApi = pathname.startsWith('/api');
+
+  // API routes handle their own 401s via requireAuth() — don't redirect those.
+  if (isApi) return;
+
+  if (!req.auth?.user) {
+    return NextResponse.redirect(new URL('/login', req.nextUrl.origin));
+  }
+
+  if (!req.auth.user.onboarded && !isOnboarding) {
+    return NextResponse.redirect(new URL('/onboarding', req.nextUrl.origin));
   }
 });
 
