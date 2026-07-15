@@ -1,15 +1,18 @@
 'use client';
 
-import { LayoutDashboard, Inbox, CalendarDays, Users, Settings, Zap, Plug } from 'lucide-react';
+import { LayoutDashboard, Inbox, CalendarDays, Users, Settings, Zap, Plug, Crown, ChevronRight, BarChart3, Shield, Search } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
-  { label: 'Priority Feed', icon: Inbox, href: '/' },
-  { label: 'Calendar', icon: CalendarDays, href: '/' },
-  { label: 'Contacts', icon: Users, href: '/' },
+  { label: 'Morning Briefing', icon: Zap, href: '/briefing' },
+  { label: 'Priority Feed', icon: Inbox, href: '/feed' },
+  { label: 'Calendar', icon: CalendarDays, href: '/calendar' },
+  { label: 'Contacts', icon: Users, href: '/contacts' },
+  { label: 'Analytics', icon: BarChart3, href: '/analytics' },
   { label: 'Integrations', icon: Plug, href: '/integrations' },
+  { label: 'Audit Log', icon: Shield, href: '/audit' },
   { label: 'Settings', icon: Settings, href: '/settings' },
 ];
 
@@ -49,9 +52,7 @@ export default function LeftNav() {
       {/* Nav */}
       <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
         {navItems.map(({ label, icon: Icon, href }) => {
-          const isActive = href !== '/'
-            ? pathname === href
-            : pathname === '/' && label === 'Dashboard';
+          const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href);
           return (
             <Link
               key={label}
@@ -70,24 +71,31 @@ export default function LeftNav() {
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="px-4 py-4" style={{ borderTop: '1px solid var(--border)' }}>
-        <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-            style={{ background: 'var(--accent-gold)', color: '#09090b' }}
-          >
+      {/* Footer — profile link */}
+      <div className="px-3 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+        <Link
+          href="/profile"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all hover:opacity-90 group"
+          style={{
+            background: pathname.startsWith('/profile') ? 'rgba(212,175,55,0.1)' : 'var(--bg-elevated)',
+            border: pathname.startsWith('/profile') ? '1px solid rgba(212,175,55,0.25)' : '1px solid var(--border)',
+          }}
+        >
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg,#d4af37,#f5d87a)', color: '#09090b' }}>
             CE
           </div>
-          <div>
-            <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
               Chief Executive
             </div>
-            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Pro Plan
+            <div className="flex items-center gap-1">
+              <Crown size={9} style={{ color: '#d4af37' }} />
+              <span className="text-xs" style={{ color: '#d4af37' }}>Enterprise Plan</span>
             </div>
           </div>
-        </div>
+          <ChevronRight size={13} className="opacity-40 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-muted)' }} />
+        </Link>
       </div>
     </aside>
   );
